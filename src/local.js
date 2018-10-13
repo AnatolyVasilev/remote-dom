@@ -1,6 +1,7 @@
 /* eslint-env browser */
 
 import {Commands, Constants, MessagesQueue, EventDOMNodeAttributes} from './common';
+
 class LocalContainer {
   constructor (queueIndex, domElement, name) {
     this.domElement = domElement;
@@ -79,10 +80,24 @@ function generalEventHandler (queueIndex, evtTarget, evtName, ev) {
   }
 
   queuesByIndex[queueIndex].push([Constants.EVENT, evtTarget, evtName, evtJSON]);
-  // console.log('evtJSON',evtJSON.type, evtJSON);
-  if (evtName === 'submit') {
+  
+  const elements = elementsByQueue[queueIndex];
+  const element = elements && elements[evtTarget];
+  if (evtName === 'submit' || shouldPreventDefault(element, ev)) {
     ev.preventDefault();
   }
+}
+
+function shouldPreventDefault(element, event) {
+  if (!element || !event || typeof element.hasAttribute !== "function") {
+    return false;
+  }
+
+  if (event.type === "keydown" && event.keyCode <= 123 && event.keyCode >= 112) {
+    return false;
+  }
+
+  return element.hasAttribute("data-" + event.type + "-prevent-default");
 }
 
 function createHandleMsgOrQueueWrapper (handler) {
@@ -120,6 +135,13 @@ const messageHandlers = wrapAll({
   [Commands.createElement]: (queueIndex, msg) => {
     const elements = elementsByQueue[queueIndex];
     elements[msg[1]] = doc.createElement(msg[2].toLowerCase());
+    elements[msg[1]][Constants.QUEUE_INDEX] = queueIndex;
+    elements[msg[1]][Constants.NODE_INDEX] = msg[1];
+    return true;
+  },
+  [Commands.createElementNS]: (queueIndex, msg) => {    
+    const elements = elementsByQueue[queueIndex];
+    elements[msg[1]] = doc.createElementNS(msg[2], msg[3].toLowerCase());
     elements[msg[1]][Constants.QUEUE_INDEX] = queueIndex;
     elements[msg[1]][Constants.NODE_INDEX] = msg[1];
     return true;
@@ -305,6 +327,74 @@ const messageHandlers = wrapAll({
     }
     return false;
   },
+  [Commands.scrollIntoView]: (queueIndex, msg) => {    
+    const elements = elementsByQueue[queueIndex];
+    if (elements[msg[1]]) {
+      elements[msg[1]].scrollIntoView(msg[2]);
+      return true;
+    }
+    return false;
+  },
+  [Commands.scroll]: (queueIndex, msg) => {
+    const elements = elementsByQueue[queueIndex];
+    const element = elements[msg[1]];
+    if (elements[msg[1]]) {
+      const param1 = msg[2];
+      const param2 = msg[3];
+      if (param2 !== undefined && param2 !== null) {
+        element.scroll(param1, param2);
+      }
+      else {
+        element.scroll(param1);
+      }
+      return true;
+    }
+
+    return false;
+  },
+  [Commands.scrollTo]: (queueIndex, msg) => {
+    const elements = elementsByQueue[queueIndex];
+    const element = elements[msg[1]];
+    if (elements[msg[1]]) {
+      const param1 = msg[2];
+      const param2 = msg[3];
+      if (param2 !== undefined && param2 !== null) {
+        element.scrollTo(param1, param2);
+      }
+      else {
+        element.scrollTo(param1);
+      }
+      return true;
+    }
+
+    return false;
+  },
+  [Commands.scrollBy]: (queueIndex, msg) => {
+    const elements = elementsByQueue[queueIndex];
+    const element = elements[msg[1]];
+    if (elements[msg[1]]) {
+      const param1 = msg[2];
+      const param2 = msg[3];
+      const scrollLeftMax = element.scrollWidth - element.clientWidth;
+      const scrollTopMax = element.scrollHeight - element.clientHeight;
+      let deltaX = 0;
+      let deltaY = 0;
+      if (param2 !== undefined && param2 !== null) {
+        deltaX = param1 || 0;
+        deltaY = param2 || 0;
+      }
+      else {
+        deltaX = param1.left || 0;
+        deltaY = param1.top || 0;
+      }
+
+      element.scrollLeft = Math.min(deltaX + element.scrollLeft, scrollLeftMax);
+      element.scrollTop = Math.min(deltaY + element.scrollTop, scrollTopMax);
+      return true;
+    }
+
+    return false;
+  },
   [Commands.setSelectionRange]: (queueIndex, msg) => {
     const elements = elementsByQueue[queueIndex];
     if (elements[msg[1]]) {
@@ -370,6 +460,10 @@ const messageHandlers = wrapAll({
 }, createHandleMsgOrQueueWrapper);
 
 function applyMessages (queueIndex, messages) {
+  if (!queuesByIndex[queueIndex]) {
+    return;
+  }
+
   const updatedContainers = {};
   messages.forEach(msg => {
     const msgType = msg[0];
@@ -394,6 +488,10 @@ function handleRemoteInit (queueIndex) {
 }
 
 function updateRemoteOnInit(queueIndex) {
+  if (!queuesByIndex[queueIndex]) {
+    return;
+  }
+
   queuesByIndex[queueIndex].push([Constants.INIT, {
     WINDOW: {
       screen: {
@@ -443,8 +541,51 @@ function createMessageQueue (channel, timerFunction, nativeInvocations) {
   return queueIndex;
 }
 
+function hostHtmlElement(channelParameter, htmlElementParameter) {
+  setWindow(self);
+
+  const localQueueIndex = createMessageQueue(
+    channelParameter,
+    callback => requestAnimationFrame(callback),
+    {});
+
+  const localContainer = createContainer(localQueueIndex, htmlElementParameter);
+  return () => {
+    const queue = queuesByIndex[localQueueIndex];
+    if (!queue) {
+      return;
+    }
+
+    queue.pipe.dispose();
+
+    const elements = elementsByQueue[localContainer.queueIndex];
+    const events = eventsByQueueAndName[localContainer.queueIndex];
+    Object.keys(events).forEach(eventName => {
+      Object.keys(events[eventName]).forEach(funcKey => {
+        const origFunc = events[eventName][funcKey];
+        Object.keys(elements).forEach(elementKey => {
+          const element = elements[elementKey];
+          if (element) {
+            element.removeEventListener(eventName, origFunc);
+          }
+        });
+      });
+    });
+
+    delete queuesByIndex[localContainer.queueIndex];
+    delete elementsByQueue[localContainer.queueIndex];
+    delete eventsByQueueAndName[localContainer.queueIndex];
+    delete nativeInvocationsByQueue[localContainer.queueIndex];
+    delete pendingMessagesByQueue[localContainer.queueIndex];
+    delete containerUpdatesObserversByQueue[localContainer.queueIndex];
+    delete containerRemoteIdToNameByQueue[localContainer.queueIndex];
+    delete containersByQueueAndName[localContainer.queueIndex];
+  };
+}
+
 export {
   createContainer,
   createMessageQueue,
-  setWindow
+  setWindow,
+  hostHtmlElement
 };

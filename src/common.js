@@ -22,6 +22,7 @@ const Node = {
 const Commands = {
   createContainer: 'createContainer',
   createElement: 'createElement',
+  createElementNS: 'createElementNS',
   createTextNode: 'createTextNode',
   createComment: 'createComment',
   createDocumentFragment: 'createDocumentFragment',
@@ -47,7 +48,11 @@ const Commands = {
   play: 'play',
   src: 'src',
   focus: 'focus',
-  setSelectionRange: 'setSelectionRange'
+  setSelectionRange: 'setSelectionRange',
+  scrollIntoView: 'scrollIntoView',
+  scroll: 'scroll',
+  scrollTo: 'scrollTo',
+  scrollBy: 'scrollBy'
 };
 
 const Constants = {
@@ -66,9 +71,8 @@ let index = 0;
 class Pipe {
   constructor (channel, handler) {
     this.channel = channel;
-    this.channel.addEventListener('message', function (ev) {
+    this.onMessage = ev => {
       let message = null;
-      // console.log("in Event Listener", ev)
       try {
         message = JSON.parse(ev.data);
       } catch (e) {
@@ -77,11 +81,17 @@ class Pipe {
       if (message[Constants.REMOTE_DOM]) {
         handler(message[Constants.REMOTE_DOM]);
       }
-    });
+    };
+
+    this.channel.addEventListener('message', this.onMessage);
   }
 
   postMessage (messages) {
     this.channel.postMessage(JSON.stringify({REMOTE_DOM: messages}));
+  }
+
+  dispose() {
+    this.channel.removeEventListener('message', this.onMessage);
   }
 }
 
