@@ -80,7 +80,7 @@ function generalEventHandler (queueIndex, evtTarget, evtName, ev) {
   }
 
   queuesByIndex[queueIndex].push([Constants.EVENT, evtTarget, evtName, evtJSON]);
-  
+
   const elements = elementsByQueue[queueIndex];
   const element = elements && elements[evtTarget];
   if (evtName === 'submit' || shouldPreventDefault(element, ev)) {
@@ -139,7 +139,7 @@ const messageHandlers = wrapAll({
     elements[msg[1]][Constants.NODE_INDEX] = msg[1];
     return true;
   },
-  [Commands.createElementNS]: (queueIndex, msg) => {    
+  [Commands.createElementNS]: (queueIndex, msg) => {
     const elements = elementsByQueue[queueIndex];
     elements[msg[1]] = doc.createElementNS(msg[2], msg[3].toLowerCase());
     elements[msg[1]][Constants.QUEUE_INDEX] = queueIndex;
@@ -327,7 +327,7 @@ const messageHandlers = wrapAll({
     }
     return false;
   },
-  [Commands.scrollIntoView]: (queueIndex, msg) => {    
+  [Commands.scrollIntoView]: (queueIndex, msg) => {
     const elements = elementsByQueue[queueIndex];
     if (elements[msg[1]]) {
       elements[msg[1]].scrollIntoView(msg[2]);
@@ -456,7 +456,31 @@ const messageHandlers = wrapAll({
     }
 
     return false;
-  }
+  },
+  [Commands.setContextProperty]: (queueIndex, msg) => {
+    const elements = elementsByQueue[queueIndex];
+    const canvas = elements[msg[1]];
+
+    if (canvas) {
+      const context = canvas.getContext('2d');
+      context[msg[2]] = msg[3];
+      return true;
+    }
+
+    return false;
+  },
+  [Commands.invokeContextMethod]: (queueIndex, msg) => {
+    const elements = elementsByQueue[queueIndex];
+    const canvas = elements[msg[1]];
+
+    if (canvas) {
+      const context = canvas.getContext('2d');
+      context[msg[2]].apply(context, msg[3]);
+      return true;
+    }
+
+    return false;
+  },
 }, createHandleMsgOrQueueWrapper);
 
 function applyMessages (queueIndex, messages) {

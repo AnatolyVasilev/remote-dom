@@ -7,14 +7,6 @@ import * as localDOM from '../local';
 import { Constants } from '../common';
 
 const windowOverrides = {
-  screen: {
-    width: 100,
-    height: 200,
-    orientation: {
-      angle: 0,
-      type: 'test-type'
-    }
-  },
   devicePixelRatio: 2,
   innerWidth: 50,
   innerHeight: 60,
@@ -35,9 +27,9 @@ let cb;
 beforeEach(() => {
   cb = jest.fn();
   env = testUtils.setup(windowOverrides, documentOverrides);
-  domContainer = env.jsdomDefaultView.document.createElement('div');
+  domContainer = env.jsdomDefaultView.window.document.createElement('div');
   const id = 'container_' + counter++;
-  env.jsdomDefaultView.document.body.appendChild(domContainer);
+  env.jsdomDefaultView.window.document.body.appendChild(domContainer);
   localDOM.createContainer(env.localQueue, domContainer, id, cb);
   remoteContainer = remoteDOM.createContainer(id);
 });
@@ -402,12 +394,12 @@ describe('dispatchEvent', () => {
     });
     const listenerSpy = jest.fn();
     remoteDOM.document.addEventListener('test-event', listenerSpy);
-    env.jsdomDefaultView.document.dispatchEvent = jest.fn(); // this had to be done with a spy (opposed to the previous tests) since jsdom window does not function like a real window object
+    env.jsdomDefaultView.window.document.dispatchEvent = jest.fn(); // this had to be done with a spy (opposed to the previous tests) since jsdom window does not function like a real window object
 
     remoteDOM.document.dispatchEvent(evt);
 
-    expect(env.jsdomDefaultView.document.dispatchEvent).toHaveBeenCalled();
-    expect(env.jsdomDefaultView.document.dispatchEvent.mock.calls[0][0].type).toBe('test-event');
+    expect(env.jsdomDefaultView.window.document.dispatchEvent).toHaveBeenCalled();
+    expect(env.jsdomDefaultView.window.document.dispatchEvent.mock.calls[0][0].type).toBe('test-event');
   });
 });
 
@@ -595,7 +587,7 @@ describe('messages arriving before a local container was created', () => {
   });
 
   it('addEventListener evt fields that contain a Window type objects should be replaced with null even if they represent another frame (message event)', () => {
-    const frame = env.jsdomDefaultView.document.createElement('iframe');
+    const frame = env.jsdomDefaultView.window.document.createElement('iframe');
     const listenerSpy = jest.fn();
     const div = remoteDOM.document.createElement('div');
     remoteContainer.appendChild(div);

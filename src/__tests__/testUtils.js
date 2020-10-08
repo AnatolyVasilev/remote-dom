@@ -1,5 +1,6 @@
 const remoteDOM = require('../remote');
 const localDOM = require('../local');
+require('canvas');
 
 const trace = false;
 
@@ -11,13 +12,13 @@ function syncTimeout (cb) {
 }
 
 function setup (windowOverrides, documentOverrides, timerFunc) {
-  const jsdom = require('jsdom');
-  const jsdomDefaultView = jsdom.jsdom({
+  const { JSDOM } = require('jsdom');
+  const jsdomDefaultView = new JSDOM({
     features: {
       FetchExternalResources: false,
       ProcessExternalResources: false
     }
-  }).defaultView;
+  });
 
   remoteDOM.populateGlobalScope(global); // eslint-disable-line no-undef
 
