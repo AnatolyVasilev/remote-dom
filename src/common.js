@@ -55,6 +55,8 @@ const Commands = {
   scrollBy: 'scrollBy',
   setContextProperty: 'setContextProperty',
   invokeContextMethod: 'invokeContextMethod',
+  className: 'className',
+  setId: 'setId',
 };
 
 const Constants = {

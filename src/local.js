@@ -481,6 +481,22 @@ const messageHandlers = wrapAll({
 
     return false;
   },
+  [Commands.className]: (queueIndex, msg) => {
+    const elements = elementsByQueue[queueIndex];
+    if (elements[msg[1]]) {
+      elements[msg[1]].className = msg[2];
+      return true;
+    }
+    return false;
+  },
+  [Commands.setId]: (queueIndex, msg) => {
+    const elements = elementsByQueue[queueIndex];
+    if (elements[msg[1]]) {
+      elements[msg[1]].id = msg[2];
+      return true;
+    }
+    return false;
+  },
 }, createHandleMsgOrQueueWrapper);
 
 function applyMessages (queueIndex, messages) {

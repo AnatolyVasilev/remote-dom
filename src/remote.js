@@ -247,8 +247,10 @@ function createScope() {
     constructor (tagName, isTagNameCaseSensitive) {
       super(Node.ELEMENT_NODE);
       this.tagName = isTagNameCaseSensitive ? tagName : tagName.toUpperCase();
+      this.$id = null;
       this.$style = new RemoteStyle(this.$index);
       this.$attr = {};
+      this.$class = new Set();
     }
 
     get nodeName () {
@@ -259,6 +261,16 @@ function createScope() {
       addToQueue(Commands.setAttribute, this.$host, [this.$index, k, v]);
       this.$attr[k] = {name: k, value: v};
       this[k] = v;
+      if (k === 'class') {
+        this.$class.clear();
+        for(const cl of v.split(' ')) {
+          this.$class.add(cl);
+        }
+      }
+    }
+
+    getAttribute(k) {
+      return this[k];
     }
 
     removeAttribute (k) {
@@ -294,6 +306,15 @@ function createScope() {
       addToQueue(Commands.setSelectionRange, this.$host, [this.$index, selectionStart, selectionEnd, selectionDirection]);
     }
 
+    set id(id) {
+      addToQueue(Commands.setId, this.$host, [this.$index, id]);
+      this.$id = id;
+    }
+
+    get id() {
+      return this.$id;
+    }
+
     get style() {
       return this.$style;
     }
@@ -313,6 +334,61 @@ function createScope() {
 
     set innerText (val) {
       addToQueue(Commands.innerText, this.$host, [this.$index, val]);
+    }
+
+    get className() {
+      return Array.from(this.$class).join(' ');
+    }
+
+    set className(className) {
+      addToQueue(Commands.className, this.$host, [this.$index, className]);
+      const classes = className.split(' ');
+      this.$class.clear();
+      for(const cl of classes) {
+        this.$class.add(cl);
+      }
+    }
+
+    get classList() {
+      const self = this;
+      return {
+        add: (cl) => {
+          this.$class.add(cl);
+          addToQueue(Commands.className, this.$host, [this.$index, Array.from(this.$class).join(' ')]);
+        },
+        remove: (cl) => {
+          this.$class.delete(cl);
+          addToQueue(Commands.className, this.$host, [this.$index, Array.from(this.$class).join(' ')]);
+        },
+        toggle: (cl) => {
+          if(!this.$class.has(cl)) {
+            this.class.add(cl);
+          } else {
+            this.class.delete(cl);
+          }
+          addToQueue(Commands.className, this.$host, [this.$index, Array.from(this.$class).join(' ')]);
+        },
+        contains: (cl) => {
+          return this.$class.has(cl);
+        },
+        [Symbol.iterator]: function* () {
+          for(const cl of self.$class) {
+            yield cl;
+          }
+        }
+      };
+    }
+
+    querySelector(query) {
+      return querySelector(this, query);
+    }
+
+    querySelectorAll(query) {
+      return querySelectorAll(this, query);
+    }
+
+    getElementById(id) {
+      return getElementById(this, id);
     }
   }
 
@@ -604,6 +680,138 @@ function createScope() {
     return imgNode;
   }
 
+  function getTokenByPath(childToParentArray, exact = false) {
+    if (childToParentArray.length === 0) return null;
+    const elmPath = childToParentArray.pop();
+    if (elmPath === '>') {
+      return getTokenByPath(childToParentArray, true);
+    }
+    const token = {
+      tag: elmPath.match(/^[a-zA-Z]+[0-9a-zA-Z]*/gi),
+      id: elmPath.match(/\#[a-zA-Z]+[0-9\-\_a-zA-Z]*/gi),
+      classes: elmPath.match(/\.[a-zA-Z]+[0-9\-\_a-zA-Z]*/gi),
+      attributes: elmPath.match(/\[[a-zA-Z]+[0-9a-zA-Z]*([\^\$\*]?[\=][a-zA-Z]+[0-9a-zA-Z]*)?\]/gi),
+      parent: getTokenByPath(childToParentArray),
+      exact: exact,
+    };
+    return token;
+  }
+
+  function getTokensByQuery(xPath) {
+    const paths = xPath.split(',');
+    const tokens = [];
+    for(let path of paths) {
+      path = path
+        .replace(/>/gi, ' > ')
+        .replace(/\s+/gi, ' ');
+      const token = getTokenByPath(path.split(' '));
+      tokens.push(token);
+    }
+    return tokens;
+  }
+
+  function matchToken(elm, token) {
+    if (!matchProperties(elm, token)) return false;
+    while(token.parent && elm.parentNode) {
+      token = token.parent;
+      elm = elm.parentNode;
+      if (token.exact && !matchProperties(elm, token)) return false;
+      if (!token.exact) {
+        while(elm && !matchProperties(elm, token)) {
+          elm = elm.parentNode;
+        }
+        if (!elm) return false;
+      }
+    }
+    if (token.parent) return false;
+    return true;
+  }
+
+  function matchProperties(elm, token) {
+    if(!matchTag(elm, token.tag)) return false;
+    if(!matchId(elm, token.id)) return false;
+    if(!matchClasses(elm, token.classes)) return false;
+    if(!matchAttributes(elm, token.attributes)) return false;
+    return true;
+  }
+
+  function matchTag(elm, tags) {
+    return !tags || elm.tagName.toLowerCase() === tags[0].toLowerCase();
+  }
+
+  function matchId(elm, ids) {
+    return !ids || ids.length === 1 && ids.includes(`#${elm.id}`);
+  }
+
+  function matchClasses(elm, classes) {
+    if (!classes) return true;
+    for(const cl of classes) {
+      if (!elm.classList.contains(cl.slice(1))) return false;
+    }
+    return true;
+  }
+
+  function matchAttributes(elm, attributes) {
+    if (!attributes) return true;
+    for(const dirtyAttrRecord of attributes) {
+      const cleanRecord = dirtyAttrRecord.slice(1, -1);
+      const [attributeName, attributeValue] = cleanRecord.split('=');
+      if (!elm.hasAttribute(attributeName)) return false;
+      if(attributeValue) {
+        const prefix = attributeName.slice(attributeName.length - 1);
+        const realAttributeValue = elm.getAttribute(attributeName);
+        switch(prefix) {
+          case '^':
+            if(!realAttributeValue.startsWith(attributeValue)) return false;
+            break;
+          case '$':
+            if(!realAttributeValue.endsWith(attributeValue)) return false;
+            break;
+          case '*':
+            if(!realAttributeValue.includes(attributeValue)) return false;
+            break;
+          default:
+            if(realAttributeValue !== attributeValue) return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  function getMatchedElements(elm, token) {
+    const elms = [];
+    if (!elm) return elms;
+    if (matchToken(elm, token)) {
+      elms.push(elm);
+    }
+    if (elm.childNodes) {
+      for(const node of elm.childNodes) {
+        elms.push(...getMatchedElements(node, token));
+      }
+    }
+    return elms;
+  }
+
+  function querySelectorAll(elm, query) {
+    const results = [];
+    const tokens = getTokensByQuery(query);
+    for(const token of tokens) {
+      if (elm.childNodes.length === 0) break;
+      for(const child of elm.childNodes) {
+        results.push(...getMatchedElements(child, token));
+      }
+    }
+    return results;
+  }
+
+  function querySelector(elm, query) {
+    return querySelectorAll(elm, query)[0];
+  }
+
+  function getElementById(elm, id) {
+    return querySelectorAll(elm, `#${id}`)[0];
+  }
+
   function populateGlobalScope(scope) {
     scope.window = window;
     scope.document = document;
@@ -620,7 +828,10 @@ function createScope() {
     removeEventListener: removeEventListener.bind(null, Constants.DOCUMENT, null),
     documentElement: new RemoteElement('html'),
     dispatchEvent: dispatchEvent.bind(null, Constants.DOCUMENT, null),
-    createElementNS
+    createElementNS,
+    querySelector: query => querySelector(document.documentElement, query),
+    querySelectorAll: query => querySelectorAll(document.documentElement, query),
+    getElementById: id => getElementById(document.documentElement, id),
   };
 
   SupportedEvents.forEach((e) => {
