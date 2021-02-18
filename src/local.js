@@ -1,6 +1,6 @@
 /* eslint-env browser */
 
-import {Commands, Constants, MessagesQueue, EventDOMNodeAttributes} from './common';
+import {Commands, Constants, MessagesQueue, EventDOMNodeAttributes, WeirdBooleanAttrs} from './common';
 
 class LocalContainer {
   constructor (queueIndex, domElement, name) {
@@ -219,7 +219,11 @@ const messageHandlers = wrapAll({
     const elements = elementsByQueue[queueIndex];
 
     if (elements[msg[1]]) {
-      elements[msg[1]].setAttribute(msg[2], msg[3]);
+      if (WeirdBooleanAttrs.includes(msg[2])) {
+        (elements[msg[1]])[msg[2]] = msg[3];
+      } else {
+        elements[msg[1]].setAttribute(msg[2], msg[3]);
+      }
       return true;
     }
 
