@@ -91,6 +91,15 @@ it('node replaceChild', () => {
   expect(domContainer.textContent).toBe('hello span 2');
 });
 
+it('react checkbox trick', () => {
+  const statelessComp = props => <input type="checkbox" checked={props.checked}/>;
+
+  [false, true].forEach(val => {
+    ReactDOM.render(React.createElement(statelessComp, {checked: val}), remoteContainer);
+    expect(domContainer.firstChild.checked).toBe(val);
+  });
+});
+
 describe('initialization', () => {
   describe('populateGlobalScope', () => {
     it('should override window and document', () => {

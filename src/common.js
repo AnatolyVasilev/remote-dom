@@ -152,6 +152,12 @@ const StyleAttributes = ['alignContent', 'alignItems', 'alignSelf', 'alignmentBa
 
 const SupportedEvents = ['onreadystatechange', 'onpointerlockchange', 'onpointerlockerror', 'onbeforecopy', 'onbeforecut', 'onbeforepaste', 'oncopy', 'oncut', 'onpaste', 'onsearch', 'onselectionchange', 'onselectstart', 'onwheel', 'onwebkitfullscreenchange', 'onwebkitfullscreenerror', 'onabort', 'onblur', 'oncancel', 'oncanplay', 'oncanplaythrough', 'onchange', 'onclick', 'onclose', 'oncontextmenu', 'oncuechange', 'ondblclick', 'ondrag', 'ondragend', 'ondragenter', 'ondragleave', 'ondragover', 'ondragstart', 'ondrop', 'ondurationchange', 'onemptied', 'onended', 'onerror', 'onfocus', 'oninput', 'oninvalid', 'onkeydown', 'onkeypress', 'onkeyup', 'onload', 'onloadeddata', 'onloadedmetadata', 'onloadstart', 'onmousedown', 'onmouseenter', 'onmouseleave', 'onmousemove', 'onmouseout', 'onmouseover', 'onmouseup', 'onmousewheel', 'onpause', 'onplay', 'onplaying', 'onprogress', 'onratechange', 'onreset', 'onresize', 'onscroll', 'onseeked', 'onseeking', 'onselect', 'onshow', 'onstalled', 'onsubmit', 'onsuspend', 'ontimeupdate', 'ontoggle', 'onvolumechange', 'onwaiting'];
 
+// lucky ones from that list:
+// https://github.com/facebook/react/blob/9198a5cec0936a21a5ba194a22fcbac03eba5d1d/packages/react-dom/src/shared/DOMProperty.js#L360-L361
+// These are the few React props that we set as DOM properties
+// rather than attributes. These are all booleans.
+const WeirdBooleanAttrs = ['checked'];
+
 export {
   Commands,
   Node,
@@ -160,5 +166,6 @@ export {
   Constants,
   StyleAttributes,
   SupportedEvents,
-  EventDOMNodeAttributes
+  EventDOMNodeAttributes,
+  WeirdBooleanAttrs
 };

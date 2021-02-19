@@ -443,6 +443,16 @@ function createScope() {
     get value () {
       return this.$value;
     }
+
+    set checked (val) {
+      val = !!val;
+      this.$checked = val;
+      addToQueue(Commands.setAttribute, this.$host, [this.$index, 'checked', val]);
+    }
+
+    get checked () {
+      return this.$checked;
+    }
   }
 
   class RemoteSelect extends RemoteElement {
