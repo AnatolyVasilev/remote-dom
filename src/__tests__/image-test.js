@@ -11,9 +11,9 @@ let env;
 describe('image tests', () => {
   beforeEach(() => {
     env = testUtils.setup();
-    domContainer = env.jsdomDefaultView.document.createElement('div');
+    domContainer = env.jsdomDefaultView.window.document.createElement('div');
     const id = 'container_' + counter++;
-    env.jsdomDefaultView.document.body.appendChild(domContainer);
+    env.jsdomDefaultView.window.document.body.appendChild(domContainer);
     localDOM.createContainer(env.localQueue, domContainer, id);
     remoteContainer = remoteDOM.createContainer(id);
   });

@@ -52,7 +52,9 @@ const Commands = {
   scrollIntoView: 'scrollIntoView',
   scroll: 'scroll',
   scrollTo: 'scrollTo',
-  scrollBy: 'scrollBy'
+  scrollBy: 'scrollBy',
+  setContextProperty: 'setContextProperty',
+  invokeContextMethod: 'invokeContextMethod',
 };
 
 const Constants = {

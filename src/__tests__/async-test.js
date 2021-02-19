@@ -4,14 +4,6 @@ import * as remoteDOM from '../remote';
 import * as localDOM from '../local';
 
 const windowOverrides = {
-  screen: {
-    width: 100,
-    height: 200,
-    orientation: {
-      angle: 0,
-      type: 'test-type'
-    }
-  },
   devicePixelRatio: 2,
   innerWidth: 50,
   innerHeight: 60,
@@ -40,9 +32,9 @@ function flushQueue() {
 beforeEach(() => {
   cb = jest.fn();
   env = testUtils.setup(windowOverrides, documentOverrides, asyncTimeout);
-  domContainer = env.jsdomDefaultView.document.createElement('div');
+  domContainer = env.jsdomDefaultView.window.document.createElement('div');
   const id = 'container_' + counter++;
-  env.jsdomDefaultView.document.body.appendChild(domContainer);
+  env.jsdomDefaultView.window.document.body.appendChild(domContainer);
   localDOM.createContainer(env.localQueue, domContainer, id, cb);
   remoteContainer = remoteDOM.createContainer(id);
 });
@@ -91,8 +83,8 @@ describe('create container callback', () => {
 
   it('should trigger only relevant container callback', () => {
     const secondCb = jest.fn();
-    const anotherDomContainer = env.jsdomDefaultView.document.createElement('div');
-    env.jsdomDefaultView.document.body.appendChild(anotherDomContainer);
+    const anotherDomContainer = env.jsdomDefaultView.window.document.createElement('div');
+    env.jsdomDefaultView.window.document.body.appendChild(anotherDomContainer);
     localDOM.createContainer(env.localQueue, anotherDomContainer, 'second_container', secondCb);
     const secondContainer = remoteDOM.createContainer('second_container');
 

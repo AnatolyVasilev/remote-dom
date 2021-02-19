@@ -367,6 +367,69 @@ function createScope() {
     }
   }
 
+  class RemoteCanvasContext {
+
+    constructor(canvas) {
+      this.$properties = new Map();
+      this.$properties.set('canvas', canvas);
+      this.$properties.set('fillStyle', '#000');
+      this.$properties.set('font', '10px sans-serif');
+      this.$properties.set('globalAlpha', 1.0);
+      this.$properties.set('globalCompositeOperation', 'source-over');
+      this.$properties.set('imageSmoothingEnabled', true);
+      this.$properties.set('lineCap', 'butt');
+      this.$properties.set('lineDashOffset', 0.0);
+      this.$properties.set('lineJoin', 'miter');
+      this.$properties.set('lineWidth', 1.0);
+      this.$properties.set('miterLimit', 10.0);
+      this.$properties.set('shadowBlur', 0);
+      this.$properties.set('shadowColor', 'rgba(0,0,0,0)');
+      this.$properties.set('shadowOffsetX', 0);
+      this.$properties.set('shadowOffsetY', 0);
+      this.$properties.set('strokeStyle', '#000');
+      this.$properties.set('textAlign', 'start');
+      this.$properties.set('textBaseline', 'alphabetic');
+      return new Proxy(this, {
+        get: (object, key) => {
+          if (this.$properties.has(key)) {
+            return this.$properties.get(key);
+          }
+          return (...args) => {
+            addToQueue(Commands.invokeContextMethod, canvas.$host, [canvas.$index, key, args]);
+          };
+        },
+        set: (object, key, value) => {
+          if (!this.$properties.has(key)) {
+            throw new Error(`Setting canvas context method doesn't supported! [${key}]`);
+          }
+          if (['canvas'].includes(key)) {
+            return false;
+          }
+          addToQueue(Commands.setContextProperty, canvas.$host, [canvas.$index, key, value]);
+          this.$properties.set(key, value);
+          return true;
+        },
+      });
+    }
+
+  }
+
+  class RemoteCanvas extends RemoteElement {
+    constructor() {
+      super('canvas');
+      this.$2dContext = new RemoteCanvasContext(this);
+    }
+
+    getContext (contextType) {
+      switch(contextType) {
+        case '2d':
+          return this.$2dContext;
+        default:
+          throw new Error('Unsupported context type');
+      }
+    }
+  }
+
   class RemoteInput extends RemoteElement {
     constructor () {
       super('input');
@@ -416,6 +479,9 @@ function createScope() {
         break;
       case 'select':
         res = new RemoteSelect();
+        break;
+      case 'canvas':
+        res = new RemoteCanvas();
         break;
       default:
         res = new RemoteElement(nodeName);

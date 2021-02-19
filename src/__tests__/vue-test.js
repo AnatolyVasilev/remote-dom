@@ -14,9 +14,9 @@ let env;
   beforeEach(() => {
     env = testUtils.setup(windowOverrides);
     Vue = Vue || require('vue/dist/vue');
-    domContainer = env.jsdomDefaultView.document.createElement('div');
+    domContainer = env.jsdomDefaultView.window.document.createElement('div');
     id = 'container_' + counter++;
-    env.jsdomDefaultView.document.body.appendChild(domContainer);
+    env.jsdomDefaultView.window.document.body.appendChild(domContainer);
     localDOM.createContainer(env.localQueue, domContainer, id);
     remoteContainer = remoteDOM.createContainer(id);
   });
